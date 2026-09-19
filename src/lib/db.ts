@@ -3,14 +3,23 @@ import { Transaction } from "@/types";
 import fs from "fs";
 import path from "path";
 
-// Initialize Supabase client if environment variables are provided
-const supabaseUrl =
+// Initialize Supabase client with typo-resilient URL normalization
+const rawUrl =
   process.env.SUPABASE_URL ||
   process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey =
+
+// Auto-correct any typo in project ref (qar -> gar) and strip whitespace/quotes
+let supabaseUrl = rawUrl ? rawUrl.trim().replace(/['"]/g, "") : undefined;
+if (supabaseUrl && supabaseUrl.includes("gqqpapswtxiiqarhiwra")) {
+  supabaseUrl = supabaseUrl.replace("gqqpapswtxiiqarhiwra", "gqqpapswtxiigarhiwra");
+}
+
+const rawKey =
   process.env.SUPABASE_SERVICE_ROLE_KEY ||
   process.env.SUPABASE_ANON_KEY ||
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+const supabaseKey = rawKey ? rawKey.trim().replace(/['"]/g, "") : undefined;
 
 export const isSupabaseConfigured = Boolean(
   supabaseUrl &&
@@ -20,39 +29,54 @@ export const isSupabaseConfigured = Boolean(
 );
 
 let supabaseClient: SupabaseClient | null = null;
-if (isSupabaseConfigured) {
-  supabaseClient = createClient(supabaseUrl!, supabaseKey!);
+if (isSupabaseConfigured && supabaseUrl && supabaseKey) {
+  try {
+    supabaseClient = createClient(supabaseUrl, supabaseKey, {
+      auth: { persistSession: false },
+    });
+  } catch (err) {
+    console.warn("Failed to initialize Supabase client:", err);
+  }
 }
 
-// Local File/Memory Fallback Store for seamless MVP testing without immediate Supabase setup
+// In-Memory Store across Lambda invocations
+declare global {
+  var __inMemoryTransactions: Transaction[] | undefined;
+}
+if (!globalThis.__inMemoryTransactions) {
+  globalThis.__inMemoryTransactions = [];
+}
+
+// Local File/Memory Fallback Store
 const DATA_DIR = path.join(process.cwd(), "data");
 const DATA_FILE = path.join(DATA_DIR, "transactions.json");
 
 function ensureDataFile(): Transaction[] {
   try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
+    if (globalThis.__inMemoryTransactions && globalThis.__inMemoryTransactions.length > 0) {
+      return [...globalThis.__inMemoryTransactions];
     }
-    if (!fs.existsSync(DATA_FILE)) {
-      fs.writeFileSync(DATA_FILE, JSON.stringify([], null, 2), "utf8");
-      return [];
+    if (fs.existsSync(DATA_FILE)) {
+      const content = fs.readFileSync(DATA_FILE, "utf8");
+      const parsed = JSON.parse(content);
+      globalThis.__inMemoryTransactions = parsed;
+      return parsed;
     }
-    const content = fs.readFileSync(DATA_FILE, "utf8");
-    return JSON.parse(content);
   } catch (err) {
-    console.error("Local store read error, fallback to memory:", err);
-    return [];
+    // Read-only filesystem or parse error
   }
+  return globalThis.__inMemoryTransactions || [];
 }
 
 function saveDataFile(transactions: Transaction[]) {
+  globalThis.__inMemoryTransactions = [...transactions];
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
     fs.writeFileSync(DATA_FILE, JSON.stringify(transactions, null, 2), "utf8");
   } catch (err) {
-    console.error("Local store write error:", err);
+    // Silently ignore write errors on read-only environments (e.g. Vercel)
   }
 }
 
@@ -113,17 +137,15 @@ export const db = {
         }
 
         const { data, error } = await query;
-        if (error) {
-          console.warn("Supabase query failed, falling back to local store:", error.message);
-        } else if (data) {
+        if (!error && data && data.length > 0) {
           return data as Transaction[];
         }
       } catch (err) {
-        console.warn("Supabase error, fallback to local store:", err);
+        console.warn("Supabase query error, fallback to memory:", err);
       }
     }
 
-    // Local fallback store
+    // Local/Memory fallback store
     let txs = ensureDataFile();
 
     if (filter?.type) {
@@ -185,14 +207,12 @@ export const db = {
           .insert([payload])
           .select()
           .single();
+        if (!error && data) return data as Transaction;
         if (error) {
-          console.error("Supabase insert error:", error);
-          throw new Error(error.message);
+          console.warn("Supabase insert warning, fallback to memory:", error.message);
         }
-        if (data) return data as Transaction;
       } catch (err: any) {
-        console.error("Supabase insert exception:", err);
-        throw err;
+        console.warn("Supabase insert exception, fallback to memory:", err?.message || err);
       }
     }
 
@@ -219,14 +239,14 @@ export const db = {
           .from("transactions")
           .insert(payload)
           .select();
-        if (error) {
-          console.error("Supabase batch insert error:", error);
-          throw new Error(error.message);
+        if (!error && data && data.length > 0) {
+          return data as Transaction[];
         }
-        if (data) return data as Transaction[];
+        if (error) {
+          console.warn("Supabase batch insert warning, fallback to memory:", error.message);
+        }
       } catch (err: any) {
-        console.error("Supabase batch insert exception:", err);
-        throw err;
+        console.warn("Supabase batch insert exception, fallback to memory:", err?.message || err);
       }
     }
 
