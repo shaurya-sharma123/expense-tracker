@@ -132,7 +132,7 @@ export default function DashboardPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
-            Irregular Income & Volatility Dashboard
+            Irregular Income Dashboard
           </h1>
           <p className="text-sm text-slate-500 mt-1">
             Real-time financial visibility, volatility metrics, and safety reserves for gig and irregular earners.
