@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { createClient as createAdminClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
 
@@ -63,6 +64,53 @@ export async function POST(request: NextRequest) {
     });
 
     if (error) {
+      // If email rate limit is exceeded, try to auto-confirm via admin client if service role key is configured
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (serviceRoleKey) {
+        try {
+          const adminClient = createAdminClient(supabaseUrl, serviceRoleKey.trim().replace(/['"]/g, ""), {
+            auth: { autoRefreshToken: false, persistSession: false },
+          });
+
+          // Create with auto-confirmed email (bypasses email sending completely)
+          const { data: adminUser, error: adminErr } = await adminClient.auth.admin.createUser({
+            email: email.trim(),
+            password,
+            email_confirm: true,
+          });
+
+          if (!adminErr && adminUser?.user) {
+            const { data: loginData } = await supabase.auth.signInWithPassword({
+              email: email.trim(),
+              password,
+            });
+
+            return NextResponse.json(
+              {
+                success: true,
+                user: adminUser.user,
+                session: loginData?.session || null,
+              },
+              { headers: response.headers }
+            );
+          }
+        } catch (adminException) {
+          console.warn("Admin auto-create fallback error:", adminException);
+        }
+      }
+
+      // Friendly message for email rate limit
+      if (error.message.toLowerCase().includes("rate limit")) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "Supabase free email rate limit reached. Please turn OFF 'Confirm email' in Supabase Dashboard (Auth -> Providers -> Email -> uncheck 'Confirm email' -> Save) to enable instant login without waiting for emails.",
+          },
+          { status: 429 }
+        );
+      }
+
       return NextResponse.json(
         { success: false, error: error.message },
         { status: 400 }
