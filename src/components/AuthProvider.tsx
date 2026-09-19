@@ -62,6 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
+      await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
       await supabase.auth.signOut();
       setUser(null);
       setSession(null);

@@ -36,21 +36,25 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email.trim(),
+          password,
+        }),
       });
 
-      if (error) {
-        setErrorMessage(error.message);
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok || !json.success) {
+        setErrorMessage(json.error || "Failed to sign in");
         setLoading(false);
         return;
       }
 
-      if (data?.session) {
-        router.push("/dashboard");
-        router.refresh();
-      }
+      router.push("/dashboard");
+      router.refresh();
     } catch (err: any) {
       setErrorMessage(err.message || "An unexpected error occurred during login.");
       setLoading(false);

@@ -49,26 +49,32 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email: email.trim(),
-        password,
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email.trim(),
+          password,
+        }),
       });
 
-      if (error) {
-        setErrorMessage(error.message);
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok || !json.success) {
+        setErrorMessage(json.error || "Failed to create account");
         setLoading(false);
         return;
       }
 
       // If Supabase provides an immediate session (email confirmation turned off)
-      if (data?.session) {
+      if (json.session) {
         router.push("/dashboard");
         router.refresh();
         return;
       }
 
       // If email confirmation is enabled on Supabase
-      if (data?.user && !data?.session) {
+      if (json.user && !json.session) {
         setConfirmationMessage(
           "Account created successfully! If your Supabase project requires email confirmation, please check your inbox to confirm your email before signing in."
         );
