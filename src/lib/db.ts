@@ -53,6 +53,31 @@ function saveDataFile(transactions: Transaction[]) {
   }
 }
 
+function sanitizeForSupabase(tx: any) {
+  let category = tx.category || "Other";
+  // Safely map common irregular earner categories to match PostgreSQL check constraints if present
+  if (category === "Food") category = "Food & Dining";
+  else if (category === "Transport") category = "Transportation";
+  else if (category === "Bills") category = "Bills & Utilities";
+  else if (category === "Rent") category = "Rent & Housing";
+  else if (category === "Cash Withdrawal") category = "Other";
+
+  const clean: Record<string, any> = {
+    id: tx.id || crypto.randomUUID(),
+    user_id: tx.user_id || "demo-user-001",
+    amount: Number(tx.amount),
+    type: tx.type === "income" ? "income" : "expense",
+    category,
+    description: String(tx.description || "").slice(0, 500),
+    transaction_date: tx.transaction_date,
+    source: tx.source === "ai" ? "ai" : "open_banking",
+  };
+
+  if (tx.merchant) clean.merchant = String(tx.merchant);
+
+  return clean;
+}
+
 export const db = {
   isUsingSupabase: () => isSupabaseConfigured,
 
@@ -151,14 +176,20 @@ export const db = {
 
     if (isSupabaseConfigured && supabaseClient) {
       try {
+        const payload = sanitizeForSupabase(newTx);
         const { data, error } = await supabaseClient
           .from("transactions")
-          .insert([newTx])
+          .insert([payload])
           .select()
           .single();
-        if (!error && data) return data as Transaction;
-      } catch (err) {
-        console.warn("Supabase insert error, saving to local store:", err);
+        if (error) {
+          console.error("Supabase insert error:", error);
+          throw new Error(error.message);
+        }
+        if (data) return data as Transaction;
+      } catch (err: any) {
+        console.error("Supabase insert exception:", err);
+        throw err;
       }
     }
 
@@ -180,13 +211,19 @@ export const db = {
 
     if (isSupabaseConfigured && supabaseClient) {
       try {
+        const payload = stampedTxs.map(sanitizeForSupabase);
         const { data, error } = await supabaseClient
           .from("transactions")
-          .insert(stampedTxs)
+          .insert(payload)
           .select();
-        if (!error && data) return data as Transaction[];
-      } catch (err) {
-        console.warn("Supabase batch insert error, saving to local store:", err);
+        if (error) {
+          console.error("Supabase batch insert error:", error);
+          throw new Error(error.message);
+        }
+        if (data) return data as Transaction[];
+      } catch (err: any) {
+        console.error("Supabase batch insert exception:", err);
+        throw err;
       }
     }
 
