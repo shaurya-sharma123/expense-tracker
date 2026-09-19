@@ -68,8 +68,7 @@ export default function SignupPage() {
 
       // If Supabase provides an immediate session (email confirmation turned off)
       if (json.session) {
-        router.push("/dashboard");
-        router.refresh();
+        window.location.href = "/dashboard";
         return;
       }
 

@@ -94,9 +94,6 @@ export default function DashboardPage() {
     }).format(val || 0);
   };
 
-  if (!user && !authLoading) {
-    return null;
-  }
 
   if (loading && !summary) {
     return (

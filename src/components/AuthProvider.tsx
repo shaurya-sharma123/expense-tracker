@@ -32,9 +32,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async function initializeAuth() {
       try {
         const { data } = await supabase.auth.getSession();
+        if (data?.session?.user) {
+          if (mounted) {
+            setSession(data.session);
+            setUser(data.session.user);
+            setLoading(false);
+          }
+          return;
+        }
+
+        // Check server cookie session
+        const res = await fetch("/api/auth/me");
+        const meJson = await res.json().catch(() => ({}));
         if (mounted) {
-          setSession(data.session);
-          setUser(data.session?.user ?? null);
+          if (meJson.authenticated && meJson.user) {
+            setUser(meJson.user as any);
+          } else {
+            setUser(null);
+          }
           setLoading(false);
         }
       } catch (err) {
@@ -63,14 +78,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     try {
       await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
-      await supabase.auth.signOut();
+      await supabase.auth.signOut().catch(() => {});
       setUser(null);
       setSession(null);
-      router.push("/login");
-      router.refresh();
+      window.location.href = "/login";
     } catch (err) {
       console.error("Sign out error:", err);
-      router.push("/login");
+      window.location.href = "/login";
     }
   };
 

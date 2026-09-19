@@ -53,8 +53,7 @@ export default function LoginPage() {
         return;
       }
 
-      router.push("/dashboard");
-      router.refresh();
+      window.location.href = "/dashboard";
     } catch (err: any) {
       setErrorMessage(err.message || "An unexpected error occurred during login.");
       setLoading(false);
