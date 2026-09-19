@@ -1,0 +1,75 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import {
+  LayoutDashboard,
+  DownloadCloud,
+  Sparkles,
+  ReceiptText,
+  ShieldCheck,
+} from "lucide-react";
+
+export function Navbar() {
+  const pathname = usePathname();
+
+  const navItems = [
+    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/import", label: "Import (AA)", icon: DownloadCloud },
+    { href: "/ai-entry", label: "AI Cash Entry", icon: Sparkles },
+    { href: "/transactions", label: "Transactions", icon: ReceiptText },
+  ];
+
+  return (
+    <header className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-slate-200">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
+          <div className="flex items-center space-x-3">
+            <Link href="/dashboard" className="flex items-center space-x-2.5">
+              <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold shadow-md shadow-indigo-200">
+                ₹
+              </div>
+              <div>
+                <span className="font-bold text-slate-900 text-lg tracking-tight">
+                  FlexiIncome
+                </span>
+                <span className="hidden md:inline-block ml-2 text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-full font-medium">
+                  CS04 Irregular Income
+                </span>
+              </div>
+            </Link>
+          </div>
+
+          <nav className="flex space-x-1 sm:space-x-2">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive =
+                pathname === item.href ||
+                (item.href === "/dashboard" && pathname === "/");
+
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`flex items-center space-x-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                    isActive
+                      ? "bg-indigo-50 text-indigo-700 font-semibold shadow-sm border border-indigo-100"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                  }`}
+                >
+                  <Icon className={`w-4 h-4 ${isActive ? "text-indigo-600" : "text-slate-500"}`} />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+
+          <div className="hidden lg:flex items-center text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full font-medium">
+            <ShieldCheck className="w-3.5 h-3.5 mr-1 text-emerald-600" />
+            Zero-Duplicate Sandbox Ready
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
