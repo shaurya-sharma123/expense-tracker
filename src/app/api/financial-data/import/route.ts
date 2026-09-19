@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     // Flow Step 1: FinancialDataProvider -> SyntheticProvider
     const provider = new SyntheticFinancialDataProvider();
 
-    // Flow Step 2: Fetch raw transactions
+    // Flow Step 2: Fetch raw transactions from provider
     const rawTransactions = await provider.fetchTransactions(
       accountId,
       startDate,
@@ -52,24 +52,59 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Flow Step 3: Normalization & Validation
+    // Flow Step 3: Deduplication against existing user transactions
+    const existingTransactions = await db.getAllTransactions({ userId });
+    const existingExternalIds = new Set(
+      existingTransactions
+        .map((t) => t.external_transaction_id)
+        .filter((id): id is string => Boolean(id))
+    );
+    const existingSignatures = new Set(
+      existingTransactions.map(
+        (t) => `${t.transaction_date}_${Number(t.amount).toFixed(2)}_${t.description.trim().toLowerCase()}`
+      )
+    );
+
     const validatedTransactions: Omit<
       Transaction,
       "id" | "created_at" | "updated_at"
     >[] = [];
 
+    let skippedCount = 0;
+
     for (const raw of rawTransactions) {
+      const signature = `${raw.date}_${Number(Math.abs(raw.amount)).toFixed(2)}_${raw.narrative.trim().toLowerCase()}`;
+      
+      // Skip if this transaction was already imported
+      if (existingExternalIds.has(raw.txn_id) || existingSignatures.has(signature)) {
+        skippedCount++;
+        continue;
+      }
+
       const normalized = provider.normalizeTransaction(raw, userId);
       const validation = validateTransaction(normalized);
 
       if (validation.valid && validation.sanitized) {
-        // Enforce authenticated user_id
         validation.sanitized.user_id = userId;
         validatedTransactions.push(validation.sanitized);
       }
     }
 
-    // Flow Step 4: Save to Database / Supabase (STRICTLY NO duplicate detection)
+    // If all transactions already exist in the ledger
+    if (validatedTransactions.length === 0) {
+      return NextResponse.json({
+        success: true,
+        provider: provider.getProviderName(),
+        accountId,
+        imported_count: 0,
+        importedCount: 0,
+        skipped_duplicates: skippedCount,
+        message: `Account is already up-to-date. All ${skippedCount} transactions were recognized and skipped as duplicates.`,
+        data: [],
+      });
+    }
+
+    // Flow Step 4: Save only new, non-duplicate transactions
     const saved = await db.createTransactionsBatch(validatedTransactions);
 
     // Flow Step 5: Response
@@ -80,7 +115,10 @@ export async function POST(request: NextRequest) {
         accountId,
         imported_count: saved.length,
         importedCount: saved.length,
-        message: `Successfully imported ${saved.length} financial transactions`,
+        skipped_duplicates: skippedCount,
+        message: skippedCount > 0
+          ? `Successfully imported ${saved.length} new transactions (${skippedCount} duplicates skipped)`
+          : `Successfully imported ${saved.length} financial transactions`,
         data: saved,
       },
       { status: 201 }

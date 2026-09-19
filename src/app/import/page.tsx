@@ -187,26 +187,40 @@ export default function ImportPage() {
 
       {/* Success Message */}
       {importResult && (
-        <div className="p-5 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-900 space-y-3">
+        <div
+          className={`p-5 rounded-2xl border space-y-3 ${
+            importResult.imported_count > 0
+              ? "bg-emerald-50 border-emerald-200 text-emerald-900"
+              : "bg-indigo-50 border-indigo-200 text-indigo-900"
+          }`}
+        >
           <div className="flex items-center space-x-2 font-semibold text-base">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-            <span>Import Succeeded!</span>
+            <CheckCircle2
+              className={`w-5 h-5 ${
+                importResult.imported_count > 0
+                  ? "text-emerald-600"
+                  : "text-indigo-600"
+              }`}
+            />
+            <span>
+              {importResult.imported_count > 0
+                ? "Import Succeeded!"
+                : "Account Already Synchronized"}
+            </span>
           </div>
-          <div className="text-sm text-emerald-800">
-            Imported Transaction Count:{" "}
-            <strong className="font-bold text-emerald-950 text-base">
+          <div className="text-sm">
+            New Transactions Added:{" "}
+            <strong className="font-bold text-base">
               {importResult.imported_count}
             </strong>
           </div>
-          <p className="text-xs text-emerald-700">
-            {importResult.message}. All transactions were normalized into the common Transaction schema and persisted without duplicate detection constraints.
-          </p>
+          <p className="text-xs opacity-90">{importResult.message}</p>
           <div className="pt-1">
             <Link
               href="/transactions"
-              className="inline-flex items-center space-x-1.5 text-xs font-bold text-emerald-800 hover:text-emerald-950 underline"
+              className="inline-flex items-center space-x-1.5 text-xs font-bold underline hover:opacity-80"
             >
-              <span>View Imported Transactions in Ledger</span>
+              <span>View Ledger</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
