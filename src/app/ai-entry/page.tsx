@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { AuthGuard } from "@/components/AuthGuard";
 import {
   Sparkles,
   CheckCircle2,
@@ -162,7 +163,8 @@ export default function AIEntryPage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 py-6 pb-12">
+    <AuthGuard>
+      <div className="max-w-3xl mx-auto space-y-6 py-6 pb-12">
       {/* Header */}
       <div className="flex items-center space-x-3">
         <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold">
@@ -446,5 +448,6 @@ export default function AIEntryPage() {
         </div>
       )}
     </div>
+    </AuthGuard>
   );
 }

@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { extractCashTransaction } from "@/lib/ai/extractor";
+import { getAuthenticatedUser } from "@/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
   try {
+    const { user, error: authError } = await getAuthenticatedUser(request);
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: authError || "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const text = body.text;
     const referenceDate = body.referenceDate; // optional YYYY-MM-DD

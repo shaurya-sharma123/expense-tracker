@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { AuthGuard } from "@/components/AuthGuard";
+import { useAuth } from "@/components/AuthProvider";
 import {
   TrendingUp,
   TrendingDown,
@@ -45,6 +47,7 @@ const CATEGORY_COLORS = [
 ];
 
 export default function DashboardPage() {
+  const { user, loading: authLoading } = useAuth();
   const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
   const [trend, setTrend] = useState<IncomeTrendPoint[]>([]);
   const [categories, setCategories] = useState<ExpenseCategoryPoint[]>([]);
@@ -78,8 +81,10 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    fetchDashboardData();
-  }, []);
+    if (user) {
+      fetchDashboardData();
+    }
+  }, [user]);
 
   const formatINR = (val: number) => {
     return new Intl.NumberFormat("en-IN", {
@@ -89,12 +94,18 @@ export default function DashboardPage() {
     }).format(val || 0);
   };
 
+  if (!user && !authLoading) {
+    return null;
+  }
+
   if (loading && !summary) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-3">
-        <RefreshCw className="w-8 h-8 text-indigo-600 animate-spin" />
-        <p className="text-sm font-medium text-slate-600">Computing financial volatility & metrics...</p>
-      </div>
+      <AuthGuard>
+        <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-3">
+          <RefreshCw className="w-8 h-8 text-indigo-600 animate-spin" />
+          <p className="text-sm font-medium text-slate-600">Computing financial volatility & metrics...</p>
+        </div>
+      </AuthGuard>
     );
   }
 
@@ -127,7 +138,8 @@ export default function DashboardPage() {
   const totalCount = summary?.transaction_count.total || 0;
 
   return (
-    <div className="space-y-8 pb-12">
+    <AuthGuard>
+      <div className="space-y-8 pb-12">
       {/* Top Header & Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -588,5 +600,6 @@ export default function DashboardPage() {
         </div>
       </div>
     </div>
-  );
+  </AuthGuard>
+);
 }

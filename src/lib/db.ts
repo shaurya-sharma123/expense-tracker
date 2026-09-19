@@ -113,6 +113,7 @@ export const db = {
     category?: string;
     source?: string;
     search?: string;
+    userId?: string;
   }): Promise<Transaction[]> {
     if (isSupabaseConfigured && supabaseClient) {
       try {
@@ -121,6 +122,9 @@ export const db = {
           .select("*")
           .order("transaction_date", { ascending: false });
 
+        if (filter?.userId) {
+          query = query.eq("user_id", filter.userId);
+        }
         if (filter?.type) {
           query = query.eq("type", filter.type);
         }
@@ -137,7 +141,7 @@ export const db = {
         }
 
         const { data, error } = await query;
-        if (!error && data && data.length > 0) {
+        if (!error && data) {
           return data as Transaction[];
         }
       } catch (err) {
@@ -148,6 +152,9 @@ export const db = {
     // Local/Memory fallback store
     let txs = ensureDataFile();
 
+    if (filter?.userId) {
+      txs = txs.filter((t) => t.user_id === filter.userId);
+    }
     if (filter?.type) {
       txs = txs.filter((t) => t.type === filter.type);
     }
@@ -173,14 +180,17 @@ export const db = {
     );
   },
 
-  async getTransactionById(id: string): Promise<Transaction | null> {
+  async getTransactionById(id: string, userId?: string): Promise<Transaction | null> {
     if (isSupabaseConfigured && supabaseClient) {
       try {
-        const { data, error } = await supabaseClient
+        let query = supabaseClient
           .from("transactions")
           .select("*")
-          .eq("id", id)
-          .single();
+          .eq("id", id);
+        if (userId) {
+          query = query.eq("user_id", userId);
+        }
+        const { data, error } = await query.single();
         if (!error && data) return data as Transaction;
       } catch (err) {
         console.warn("Supabase single get error:", err);
@@ -188,7 +198,7 @@ export const db = {
     }
 
     const txs = ensureDataFile();
-    return txs.find((t) => t.id === id) || null;
+    return txs.find((t) => t.id === id && (!userId || t.user_id === userId)) || null;
   },
 
   async createTransaction(tx: Omit<Transaction, "id" | "created_at" | "updated_at">): Promise<Transaction> {
@@ -258,7 +268,8 @@ export const db = {
 
   async updateTransaction(
     id: string,
-    updates: Partial<Transaction>
+    updates: Partial<Transaction>,
+    userId?: string
   ): Promise<Transaction | null> {
     const updatedStamp = {
       ...updates,
@@ -267,10 +278,14 @@ export const db = {
 
     if (isSupabaseConfigured && supabaseClient) {
       try {
-        const { data, error } = await supabaseClient
+        let query = supabaseClient
           .from("transactions")
           .update(updatedStamp)
-          .eq("id", id)
+          .eq("id", id);
+        if (userId) {
+          query = query.eq("user_id", userId);
+        }
+        const { data, error } = await query
           .select()
           .single();
         if (!error && data) return data as Transaction;
@@ -280,7 +295,7 @@ export const db = {
     }
 
     const txs = ensureDataFile();
-    const idx = txs.findIndex((t) => t.id === id);
+    const idx = txs.findIndex((t) => t.id === id && (!userId || t.user_id === userId));
     if (idx === -1) return null;
 
     txs[idx] = { ...txs[idx], ...updatedStamp };
@@ -288,13 +303,17 @@ export const db = {
     return txs[idx];
   },
 
-  async deleteTransaction(id: string): Promise<boolean> {
+  async deleteTransaction(id: string, userId?: string): Promise<boolean> {
     if (isSupabaseConfigured && supabaseClient) {
       try {
-        const { error } = await supabaseClient
+        let query = supabaseClient
           .from("transactions")
           .delete()
           .eq("id", id);
+        if (userId) {
+          query = query.eq("user_id", userId);
+        }
+        const { error } = await query;
         if (!error) return true;
       } catch (err) {
         console.warn("Supabase delete error:", err);
@@ -303,7 +322,7 @@ export const db = {
 
     const txs = ensureDataFile();
     const initialLen = txs.length;
-    const filtered = txs.filter((t) => t.id !== id);
+    const filtered = txs.filter((t) => !(t.id === id && (!userId || t.user_id === userId)));
     if (filtered.length !== initialLen) {
       saveDataFile(filtered);
       return true;

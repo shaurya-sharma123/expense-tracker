@@ -1,11 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { validateTransaction } from "@/lib/validation";
+import { getAuthenticatedUser } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
+    const { user, error: authError } = await getAuthenticatedUser(request);
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: authError || "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type") || undefined;
     const category = searchParams.get("category") || undefined;
@@ -13,6 +22,7 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search") || undefined;
 
     const transactions = await db.getAllTransactions({
+      userId: user.id,
       type,
       category,
       source,
@@ -35,6 +45,14 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const { user, error: authError } = await getAuthenticatedUser(request);
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: authError || "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json().catch(() => null);
     if (!body) {
       return NextResponse.json(
@@ -55,8 +73,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Attach authenticated user_id, strictly overriding any client-supplied user_id
+    const txToCreate = {
+      ...validation.sanitized,
+      user_id: user.id,
+    };
+
     // NOTE: Strictly no duplicate detection per specification.
-    const created = await db.createTransaction(validation.sanitized);
+    const created = await db.createTransaction(txToCreate);
 
     return NextResponse.json(
       {

@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { AuthGuard } from "@/components/AuthGuard";
+import { useAuth } from "@/components/AuthProvider";
 import {
   DownloadCloud,
   CheckCircle2,
@@ -14,6 +16,7 @@ import {
 import { BankAccount } from "@/types";
 
 export default function ImportPage() {
+  const { user } = useAuth();
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState<string>("");
   const [providerName, setProviderName] = useState<string>("");
@@ -27,8 +30,10 @@ export default function ImportPage() {
 
   // Fetch accounts on load
   useEffect(() => {
-    fetchAccounts();
-  }, []);
+    if (user) {
+      fetchAccounts();
+    }
+  }, [user]);
 
   const fetchAccounts = async () => {
     setLoadingAccounts(true);
@@ -82,7 +87,8 @@ export default function ImportPage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 py-6 pb-12">
+    <AuthGuard>
+      <div className="max-w-3xl mx-auto space-y-6 py-6 pb-12">
       {/* Page Header */}
       <div className="flex items-center space-x-3">
         <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold">
@@ -206,6 +212,7 @@ export default function ImportPage() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </AuthGuard>
   );
 }

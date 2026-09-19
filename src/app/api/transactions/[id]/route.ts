@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { validateTransactionUpdate } from "@/lib/validation";
+import { getAuthenticatedUser } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -12,8 +13,16 @@ interface Params {
 
 export async function GET(request: NextRequest, { params }: Params) {
   try {
+    const { user, error: authError } = await getAuthenticatedUser(request);
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: authError || "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     const { id } = params;
-    const tx = await db.getTransactionById(id);
+    const tx = await db.getTransactionById(id, user.id);
 
     if (!tx) {
       return NextResponse.json(
@@ -33,6 +42,14 @@ export async function GET(request: NextRequest, { params }: Params) {
 
 export async function PUT(request: NextRequest, { params }: Params) {
   try {
+    const { user, error: authError } = await getAuthenticatedUser(request);
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: authError || "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     const { id } = params;
     const body = await request.json().catch(() => null);
 
@@ -43,7 +60,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
       );
     }
 
-    const existing = await db.getTransactionById(id);
+    const existing = await db.getTransactionById(id, user.id);
     if (!existing) {
       return NextResponse.json(
         { success: false, error: "Transaction not found" },
@@ -63,7 +80,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
       );
     }
 
-    const updated = await db.updateTransaction(id, validation.updates);
+    const updated = await db.updateTransaction(id, validation.updates, user.id);
 
     return NextResponse.json({
       success: true,
@@ -81,8 +98,16 @@ export async function PUT(request: NextRequest, { params }: Params) {
 
 export async function DELETE(request: NextRequest, { params }: Params) {
   try {
+    const { user, error: authError } = await getAuthenticatedUser(request);
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: authError || "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     const { id } = params;
-    const existing = await db.getTransactionById(id);
+    const existing = await db.getTransactionById(id, user.id);
     if (!existing) {
       return NextResponse.json(
         { success: false, error: "Transaction not found" },
@@ -90,7 +115,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
       );
     }
 
-    const deleted = await db.deleteTransaction(id);
+    const deleted = await db.deleteTransaction(id, user.id);
     if (!deleted) {
       return NextResponse.json(
         { success: false, error: "Failed to delete transaction" },

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Navbar } from "@/components/Navbar";
+import { AuthProvider } from "@/components/AuthProvider";
 
 export const metadata: Metadata = {
   title: "FlexiIncome | FinTech for Irregular-Earning Workers",
@@ -16,13 +17,15 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="bg-slate-50 text-slate-900 antialiased min-h-screen flex flex-col">
-        <Navbar />
-        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          {children}
-        </main>
-        <footer className="border-t border-slate-200 bg-white py-4 text-center text-xs text-slate-500">
-          FlexiIncome — Income & Expense Management for Irregular Earners. Prototype estimate, not professional financial advice.
-        </footer>
+        <AuthProvider>
+          <Navbar />
+          <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            {children}
+          </main>
+          <footer className="border-t border-slate-200 bg-white py-4 text-center text-xs text-slate-500">
+            FlexiIncome — Income & Expense Management for Irregular Earners. Prototype estimate, not professional financial advice.
+          </footer>
+        </AuthProvider>
       </body>
     </html>
   );

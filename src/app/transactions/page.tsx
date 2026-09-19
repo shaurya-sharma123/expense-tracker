@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { AuthGuard } from "@/components/AuthGuard";
+import { useAuth } from "@/components/AuthProvider";
 import {
   ReceiptText,
   Search,
@@ -18,6 +20,7 @@ import {
 import { Transaction, ALLOWED_CATEGORIES, AllowedCategory } from "@/types";
 
 export default function TransactionsPage() {
+  const { user } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -58,8 +61,10 @@ export default function TransactionsPage() {
   };
 
   useEffect(() => {
-    fetchTransactions();
-  }, [selectedType, selectedSource, selectedCategory]);
+    if (user) {
+      fetchTransactions();
+    }
+  }, [user, selectedType, selectedSource, selectedCategory]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -130,7 +135,8 @@ export default function TransactionsPage() {
   };
 
   return (
-    <div className="space-y-6 pb-12">
+    <AuthGuard>
+      <div className="space-y-6 pb-12">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -458,8 +464,9 @@ export default function TransactionsPage() {
               </tbody>
             </table>
           </div>
-        )}
-      </div>
+      )}
     </div>
+  </div>
+    </AuthGuard>
   );
 }

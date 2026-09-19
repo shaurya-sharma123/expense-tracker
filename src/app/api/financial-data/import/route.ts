@@ -3,11 +3,20 @@ import { SyntheticFinancialDataProvider } from "@/lib/financial-provider/synthet
 import { validateTransaction } from "@/lib/validation";
 import { db } from "@/lib/db";
 import { Transaction } from "@/types";
+import { getAuthenticatedUser } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
+    const { user, error: authError } = await getAuthenticatedUser(request);
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: authError || "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json().catch(() => ({}));
     const inputAccountId = body.accountId !== undefined ? body.accountId : body.account_id;
     if (inputAccountId !== undefined && (typeof inputAccountId !== "string" || inputAccountId.trim() === "")) {
@@ -19,7 +28,9 @@ export async function POST(request: NextRequest) {
     const accountId = (typeof inputAccountId === "string" && inputAccountId.trim()) ? inputAccountId.trim() : "acc_hdfc_freelance_01";
     const startDate = body.startDate || body.start_date || undefined;
     const endDate = body.endDate || body.end_date || undefined;
-    const userId = body.userId || body.user_id || "demo-user-001";
+
+    // Secure: Always use the authenticated user's ID, ignore any client-supplied userId
+    const userId = user.id;
 
     // Flow Step 1: FinancialDataProvider -> SyntheticProvider
     const provider = new SyntheticFinancialDataProvider();
@@ -52,6 +63,8 @@ export async function POST(request: NextRequest) {
       const validation = validateTransaction(normalized);
 
       if (validation.valid && validation.sanitized) {
+        // Enforce authenticated user_id
+        validation.sanitized.user_id = userId;
         validatedTransactions.push(validation.sanitized);
       }
     }
