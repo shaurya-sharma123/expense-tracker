@@ -7,7 +7,6 @@ import {
   DownloadCloud,
   Sparkles,
   ReceiptText,
-  ShieldCheck,
 } from "lucide-react";
 
 export function Navbar() {
@@ -16,7 +15,7 @@ export function Navbar() {
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/import", label: "Import (AA)", icon: DownloadCloud },
-    { href: "/ai-entry", label: "AI Cash Entry", icon: Sparkles },
+    { href: "/ai-entry", label: "Cash Entry", icon: Sparkles },
     { href: "/transactions", label: "Transactions", icon: ReceiptText },
   ];
 
@@ -32,9 +31,6 @@ export function Navbar() {
               <div>
                 <span className="font-bold text-slate-900 text-lg tracking-tight">
                   FlexiIncome
-                </span>
-                <span className="hidden md:inline-block ml-2 text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-full font-medium">
-                  CS04 Irregular Income
                 </span>
               </div>
             </Link>
@@ -63,11 +59,6 @@ export function Navbar() {
               );
             })}
           </nav>
-
-          <div className="hidden lg:flex items-center text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full font-medium">
-            <ShieldCheck className="w-3.5 h-3.5 mr-1 text-emerald-600" />
-            Zero-Duplicate Sandbox Ready
-          </div>
         </div>
       </div>
     </header>

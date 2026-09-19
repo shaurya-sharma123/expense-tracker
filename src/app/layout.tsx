@@ -21,7 +21,7 @@ export default function RootLayout({
           {children}
         </main>
         <footer className="border-t border-slate-200 bg-white py-4 text-center text-xs text-slate-500">
-          CS04 MVP — Income & Expense Management for Irregular Earners. No duplicate detection active. Prototype estimate, not professional financial advice.
+          FlexiIncome — Income & Expense Management for Irregular Earners. Prototype estimate, not professional financial advice.
         </footer>
       </body>
     </html>
